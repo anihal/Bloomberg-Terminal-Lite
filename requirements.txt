@@ -9,4 +9,5 @@ python-dotenv>=1.0.0
 loguru>=0.7.0
 sqlalchemy>=2.0.0
 flask>=3.0.0
-bokeh>=3.3.0 
+bokeh>=3.3.0
+gunicorn>=21.2.0 
