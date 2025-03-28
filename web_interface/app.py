@@ -8,6 +8,7 @@ import numpy as np
 from datetime import datetime, timedelta
 import sys
 import os
+import yfinance as yf
 
 # Add the parent directory to the Python path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -20,6 +21,43 @@ app = Flask(__name__)
 # Initialize our data processor and model trainer
 processor = StockDataProcessor()
 model_trainer = ModelTrainer()
+
+def fetch_stock_data(symbol, start_date=None, end_date=None):
+    """Fetch stock data directly from yfinance."""
+    if start_date is None:
+        start_date = (datetime.now() - timedelta(days=365)).strftime('%Y-%m-%d')
+    if end_date is None:
+        end_date = datetime.now().strftime('%Y-%m-%d')
+        
+    try:
+        ticker = yf.Ticker(symbol)
+        df = ticker.history(start=start_date, end=end_date)
+        
+        if df.empty:
+            return None
+            
+        # Calculate technical indicators
+        df['sma_20'] = df['Close'].rolling(window=20).mean()
+        df['sma_50'] = df['Close'].rolling(window=50).mean()
+        df['sma_200'] = df['Close'].rolling(window=200).mean()
+        
+        # Calculate RSI
+        delta = df['Close'].diff()
+        gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
+        loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
+        rs = gain / loss
+        df['rsi'] = 100 - (100 / (1 + rs))
+        
+        # Calculate MACD
+        exp1 = df['Close'].ewm(span=12, adjust=False).mean()
+        exp2 = df['Close'].ewm(span=26, adjust=False).mean()
+        df['macd'] = exp1 - exp2
+        
+        return df
+        
+    except Exception as e:
+        print(f"Error fetching data for {symbol}: {str(e)}")
+        return None
 
 def create_stock_plot(df, symbol):
     """Create a Bokeh plot for stock data."""
@@ -34,7 +72,7 @@ def create_stock_plot(df, symbol):
     )
     
     # Add candlestick chart
-    p.line(df.index, df['close'], line_color="navy", line_width=2, legend_label="Close Price")
+    p.line(df.index, df['Close'], line_color="navy", line_width=2, legend_label="Close Price")
     
     # Add moving averages
     p.line(df.index, df['sma_20'], line_color="orange", line_width=1, legend_label="20-day SMA")
@@ -80,37 +118,27 @@ def analyze():
     symbol = request.form.get('symbol', '').upper()
     
     try:
-        # Get stock data
+        # Try to get data from database first
         df = processor.process_stock_data(symbol)
+        
+        # If no data in database, fetch directly from yfinance
         if df is None or df.empty:
-            return jsonify({'error': f'No data found for symbol {symbol}'})
+            df = fetch_stock_data(symbol)
+            if df is None:
+                return jsonify({'error': f'No data found for symbol {symbol}'})
         
         # Create visualization
         plot = create_stock_plot(df, symbol)
         script, div = components(plot)
         
-        # Get model predictions
-        X, y = model_trainer.prepare_features(df)
-        if X is not None and y is not None:
-            model, _, _ = model_trainer.train_model(X, y, {})
-            predictions = model.predict(X)
-            
-            # Calculate some basic metrics
-            metrics = {
-                'Latest Price': f"${df['close'].iloc[-1]:.2f}",
-                'RSI': f"{df['rsi'].iloc[-1]:.2f}",
-                'MACD': f"{df['macd'].iloc[-1]:.2f}",
-                'Volume': f"{df['volume'].iloc[-1]:,.0f}",
-                'Prediction': f"${predictions[-1]:.2f}"
-            }
-        else:
-            metrics = {
-                'Latest Price': f"${df['close'].iloc[-1]:.2f}",
-                'RSI': f"{df['rsi'].iloc[-1]:.2f}",
-                'MACD': f"{df['macd'].iloc[-1]:.2f}",
-                'Volume': f"{df['volume'].iloc[-1]:,.0f}",
-                'Prediction': "N/A"
-            }
+        # Calculate metrics
+        metrics = {
+            'Latest Price': f"${df['Close'].iloc[-1]:.2f}",
+            'RSI': f"{df['rsi'].iloc[-1]:.2f}",
+            'MACD': f"{df['macd'].iloc[-1]:.2f}",
+            'Volume': f"{df['Volume'].iloc[-1]:,.0f}",
+            'Change': f"{((df['Close'].iloc[-1] / df['Close'].iloc[-2] - 1) * 100):.2f}%"
+        }
         
         return jsonify({
             'success': True,
