@@ -93,7 +93,7 @@ pip install -r requirements.txt
 python data_collector.py
 ```
 4. Process data and train models:
-```bash
+  ```bash
 python model_trainer.py
 ```
 
