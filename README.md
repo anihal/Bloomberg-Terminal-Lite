@@ -2,6 +2,19 @@
 
 A high-performance stock analysis platform built with Python, offering sophisticated market data analysis and visualization capabilities. This project demonstrates expertise in financial data processing, machine learning, and full-stack development.
 
+## 🌐 Live Demo
+
+Try it now: [Bloomberg Terminal Lite](https://bloomberg-terminal-lite.onrender.com/)
+
+Enter any stock symbol (e.g., AAPL, MSFT, GOOGL) to see:
+- Real-time stock price analysis
+- Technical indicators (SMA 20, 50, 200)
+- RSI (Relative Strength Index)
+- MACD (Moving Average Convergence Divergence)
+- Daily price changes and volume
+
+Note: The demo is hosted on Render's free tier, so initial load might take 30-60 seconds if the service is idle.
+
 ## 🎯 Project Overview
 
 A lightweight, web-based alternative to professional financial platforms, focused on delivering fast, actionable insights into stock market trends. Perfect for traders, analysts, and financial enthusiasts who need quick access to market data and predictions.
