@@ -21,11 +21,12 @@ A lightweight, web-based alternative to professional financial platforms, focuse
 
 ## ✨ Implemented Features
 
-### 1. Robust Data Collection System
-- **Automated Data Fetching**: Reliable stock data collection from Yahoo Finance
-- **Smart Rate Limiting**: Built-in protection against API rate limits
-- **Data Validation**: Comprehensive checks for data integrity and quality
-- **Efficient Storage**: SQLite database with optimized schema for financial data
+### 1. Real-time Stock Data Fetching
+- **Multi-source Integration**: Combines Finnhub (real-time quotes) with yfinance (company metrics)
+- **On-demand Execution**: `get_stock_data(ticker)` function executes only when called
+- **Comprehensive Metrics**: Current price, P/E ratio, Market Cap, Sector, Industry, and more
+- **Smart Rate Limiting**: Built-in protection against API rate limits with retry logic
+- **Environment Configuration**: API keys externalized using .env files
 
 ### 2. Advanced Data Processing Pipeline
 - **Data Cleaning**: Sophisticated outlier detection and handling
@@ -83,9 +84,11 @@ A lightweight, web-based alternative to professional financial platforms, focuse
 - **Data Processing**: Pandas, NumPy, Polars
 - **Machine Learning**: LightGBM, scikit-learn
 - **Optimization**: Optuna
-- **Data Storage**: SQLite
-- **API Integration**: yfinance
+- **Data Storage**: SQLite, SQLAlchemy
+- **API Integration**: Finnhub (real-time quotes), yfinance (company metrics & historical data)
+- **Web Framework**: Flask, Bokeh (visualization)
 - **Testing**: pytest
+- **Configuration**: python-dotenv
 
 ## 📊 Performance Metrics
 
@@ -96,27 +99,75 @@ A lightweight, web-based alternative to professional financial platforms, focuse
 
 ## 🚀 Getting Started
 
+### Prerequisites
+- Python 3.9+
+- Finnhub API key (free at https://finnhub.io/register)
+
+### Installation
+
 1. Clone the repository
+```bash
+git clone https://github.com/yourusername/Bloomberg-Terminal-Lite.git
+cd Bloomberg-Terminal-Lite
+```
+
 2. Install dependencies:
 ```bash
 pip install -r requirements.txt
 ```
-3. Run data collection:
+
+3. Configure environment variables:
 ```bash
-python data_collector.py
+# Copy the example .env file
+cp .env.example .env
+
+# Edit .env and add your Finnhub API key
+# FINNHUB_API_KEY=your_actual_api_key_here
 ```
-4. Process data and train models:
-  ```bash
+
+4. Run the web interface:
+```bash
+python web_interface/app.py
+```
+
+### Optional: Legacy Data Collection
+
+For historical data collection and model training:
+
+```bash
+# Collect historical data
+python data_collector.py
+
+# Train ML models
 python model_trainer.py
 ```
 
 ## 📈 Sample Usage
 
+### Real-time Stock Data Fetching
+
+```python
+from stock_fetcher import get_stock_data
+
+# Get real-time stock data (price from Finnhub + metrics from yfinance)
+data = get_stock_data('AAPL')
+
+if data:
+    print(f"Company: {data['company_name']}")
+    print(f"Current Price: ${data['current_price']:.2f}")
+    print(f"Change: ${data['change']:.2f} ({data['percent_change']:.2f}%)")
+    print(f"Market Cap: ${data['market_cap']:,}")
+    print(f"P/E Ratio: {data['pe_ratio']:.2f}")
+    print(f"Sector: {data['sector']}")
+```
+
+### Historical Data Collection (Legacy)
+
 ```python
 from data_collector import StockDataCollector
 from model_trainer import ModelTrainer
 
-# Collect data
+# Collect historical data
 collector = StockDataCollector()
 collector.collect_stock_data("AAPL", "2020-01-01", "2023-12-31")
 

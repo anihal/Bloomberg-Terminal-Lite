@@ -15,6 +15,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from data_processor import StockDataProcessor
 from model_trainer import ModelTrainer
+from stock_fetcher import get_stock_data
 
 app = Flask(__name__)
 
@@ -116,37 +117,67 @@ def index():
 def analyze():
     """Handle stock analysis request."""
     symbol = request.form.get('symbol', '').upper()
-    
+
     try:
-        # Try to get data from database first
+        # Fetch real-time stock data using new get_stock_data function
+        stock_data = get_stock_data(symbol)
+        if stock_data is None:
+            return jsonify({'error': f'Unable to fetch data for symbol {symbol}. Please check if the symbol is valid.'})
+
+        # Try to get historical data from database first for charting
         df = processor.process_stock_data(symbol)
-        
-        # If no data in database, fetch directly from yfinance
+
+        # If no data in database, fetch directly from yfinance for historical chart
         if df is None or df.empty:
             df = fetch_stock_data(symbol)
             if df is None:
-                return jsonify({'error': f'No data found for symbol {symbol}'})
-        
+                return jsonify({'error': f'No historical data found for symbol {symbol}'})
+
         # Create visualization
         plot = create_stock_plot(df, symbol)
         script, div = components(plot)
-        
-        # Calculate metrics
+
+        # Format market cap
+        market_cap = stock_data.get('market_cap')
+        if market_cap:
+            if market_cap >= 1e12:
+                market_cap_str = f"${market_cap/1e12:.2f}T"
+            elif market_cap >= 1e9:
+                market_cap_str = f"${market_cap/1e9:.2f}B"
+            elif market_cap >= 1e6:
+                market_cap_str = f"${market_cap/1e6:.2f}M"
+            else:
+                market_cap_str = f"${market_cap:,.0f}"
+        else:
+            market_cap_str = "N/A"
+
+        # Calculate metrics combining real-time data and technical indicators
         metrics = {
-            'Latest Price': f"${df['Close'].iloc[-1]:.2f}",
-            'RSI': f"{df['rsi'].iloc[-1]:.2f}",
-            'MACD': f"{df['macd'].iloc[-1]:.2f}",
-            'Volume': f"{df['Volume'].iloc[-1]:,.0f}",
-            'Change': f"{((df['Close'].iloc[-1] / df['Close'].iloc[-2] - 1) * 100):.2f}%"
+            'Company': stock_data.get('company_name', symbol),
+            'Current Price': f"${stock_data.get('current_price', 0):.2f}",
+            'Change': f"${stock_data.get('change', 0):.2f} ({stock_data.get('percent_change', 0):.2f}%)",
+            'Day High': f"${stock_data.get('high', 0):.2f}",
+            'Day Low': f"${stock_data.get('low', 0):.2f}",
+            'Open': f"${stock_data.get('open', 0):.2f}",
+            'Previous Close': f"${stock_data.get('previous_close', 0):.2f}",
+            'Market Cap': market_cap_str,
+            'P/E Ratio': f"{stock_data.get('pe_ratio', 'N/A'):.2f}" if stock_data.get('pe_ratio') else 'N/A',
+            'Forward P/E': f"{stock_data.get('forward_pe', 'N/A'):.2f}" if stock_data.get('forward_pe') else 'N/A',
+            'PEG Ratio': f"{stock_data.get('peg_ratio', 'N/A'):.2f}" if stock_data.get('peg_ratio') else 'N/A',
+            'Sector': stock_data.get('sector', 'N/A'),
+            'Industry': stock_data.get('industry', 'N/A'),
+            'RSI': f"{df['rsi'].iloc[-1]:.2f}" if not pd.isna(df['rsi'].iloc[-1]) else 'N/A',
+            'MACD': f"{df['macd'].iloc[-1]:.2f}" if not pd.isna(df['macd'].iloc[-1]) else 'N/A',
+            'Avg Volume': f"{stock_data.get('average_volume', 0):,.0f}" if stock_data.get('average_volume') else 'N/A'
         }
-        
+
         return jsonify({
             'success': True,
             'script': script,
             'div': div,
             'metrics': metrics
         })
-        
+
     except Exception as e:
         return jsonify({'error': str(e)})
 
