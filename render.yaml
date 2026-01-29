@@ -1,9 +1,0 @@
-services:
-  - type: web
-    name: bloomberg-terminal-lite
-    env: python
-    buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn web_interface.app:app
-    envVars:
-      - key: PYTHON_VERSION
-        value: 3.9.0 
