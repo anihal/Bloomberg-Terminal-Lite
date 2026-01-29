@@ -20,6 +20,7 @@ DATABASE_URL = os.getenv("DATABASE_URL", f"sqlite:///{DATA_DIR}/stock_data.db")
 
 # API configuration
 FINNHUB_API_KEY = os.getenv("FINNHUB_API_KEY")
+ALPHA_VANTAGE_KEY = os.getenv("ALPHA_VANTAGE_KEY")
 YFINANCE_RATE_LIMIT = 2000  # requests per hour
 MAX_RETRIES = 3
 RETRY_DELAY = 5  # seconds
