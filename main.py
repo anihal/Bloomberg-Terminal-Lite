@@ -3,10 +3,17 @@ Bloomberg Lite Terminal - Streamlit UI entry point.
 """
 import streamlit as st
 import pandas as pd
+import os
 
 from data_provider import AlphaVantageClient
 from indicators import add_all_indicators
 from utils import format_currency, format_large_number, format_percent
+
+# Check if API key is configured
+if not os.getenv("ALPHA_VANTAGE_KEY"):
+    st.error("⚠️ ALPHA_VANTAGE_KEY environment variable is not set!")
+    st.info("Please set it in your Render dashboard under Environment variables.")
+    st.stop()
 
 
 st.set_page_config(
@@ -21,7 +28,7 @@ symbol = st.text_input("Enter Stock Ticker", value="AAPL", placeholder="e.g., AA
 symbol = symbol.upper().strip()
 
 
-@st.cache_data(ttl=300)
+@st.cache_data(ttl=3600)  # Cache for 1 hour to reduce API calls
 def fetch_and_process_data(ticker: str) -> pd.DataFrame:
     """Fetch stock data and calculate all indicators."""
     client = AlphaVantageClient()
@@ -167,5 +174,7 @@ if symbol:
 
     except ValueError as e:
         st.error(str(e))
+        if "Rate Limit" in str(e):
+            st.info("💡 Tip: Alpha Vantage free tier allows 5 requests/minute and 500/day. Please wait a minute and try again.")
     except Exception as e:
         st.error(f"Failed to fetch data: {str(e)}")
