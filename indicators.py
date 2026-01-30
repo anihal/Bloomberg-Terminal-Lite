@@ -6,20 +6,20 @@ import pandas as pd
 
 def add_moving_averages(df: pd.DataFrame) -> pd.DataFrame:
     """
-    Add Simple Moving Averages (20, 50, 200) and Exponential Moving Averages (20, 50).
+    Add Simple Moving Averages (20, 50, 100) and Exponential Moving Averages (20, 50).
 
     Args:
         df: DataFrame with 'close' column
 
     Returns:
-        DataFrame with added columns: sma_20, sma_50, sma_200, ema_20, ema_50
+        DataFrame with added columns: sma_20, sma_50, sma_100, ema_20, ema_50
     """
     df = df.copy()
 
     # Simple Moving Averages
     df["sma_20"] = df["close"].rolling(window=20).mean()
     df["sma_50"] = df["close"].rolling(window=50).mean()
-    df["sma_200"] = df["close"].rolling(window=200).mean()
+    df["sma_100"] = df["close"].rolling(window=100).mean()
 
     # Exponential Moving Averages
     df["ema_20"] = df["close"].ewm(span=20, adjust=False).mean()

@@ -87,7 +87,7 @@ if symbol:
         ma_col1, ma_col2, ma_col3, ma_col4, ma_col5 = st.columns(5)
         ma_col1.metric("SMA 20", format_currency(latest["sma_20"]))
         ma_col2.metric("SMA 50", format_currency(latest["sma_50"]))
-        ma_col3.metric("SMA 200", format_currency(latest["sma_200"]))
+        ma_col3.metric("SMA 100", format_currency(latest["sma_100"]))
         ma_col4.metric("EMA 20", format_currency(latest["ema_20"]))
         ma_col5.metric("EMA 50", format_currency(latest["ema_50"]))
 
