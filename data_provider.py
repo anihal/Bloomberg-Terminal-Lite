@@ -3,6 +3,7 @@ Alpha Vantage data provider for stock market data.
 """
 import requests
 import pandas as pd
+import streamlit as st
 from typing import Optional
 
 from config import ALPHA_VANTAGE_KEY
@@ -85,3 +86,64 @@ class AlphaVantageClient:
         df = df.sort_index()
 
         return df
+
+    def fetch_company_metadata(self, symbol: str) -> dict:
+        """
+        Fetch company metadata from Alpha Vantage OVERVIEW endpoint.
+
+        Args:
+            symbol: Stock ticker symbol (e.g., 'AAPL', 'MSFT')
+
+        Returns:
+            Dictionary containing: Name, Symbol, Sector, Industry
+
+        Raises:
+            ValueError: If the API returns an error or no data is found.
+            requests.RequestException: If the API request fails.
+        """
+        params = {
+            "function": "OVERVIEW",
+            "symbol": symbol.upper(),
+            "apikey": self.api_key,
+        }
+
+        response = requests.get(self.BASE_URL, params=params)
+        response.raise_for_status()
+
+        data = response.json()
+
+        if "Error Message" in data:
+            raise ValueError(f"API Error: {data['Error Message']}")
+
+        if "Note" in data:
+            raise ValueError(f"API Rate Limit: {data['Note']}")
+
+        if "Information" in data:
+            raise ValueError(f"API Information: {data['Information']}")
+
+        if not data or len(data) == 0:
+            raise ValueError(f"No metadata found for symbol: {symbol}")
+
+        return {
+            "Name": data.get("Name", "N/A"),
+            "Symbol": data.get("Symbol", symbol.upper()),
+            "Sector": data.get("Sector", "N/A"),
+            "Industry": data.get("Industry", "N/A"),
+        }
+
+
+@st.cache_data
+def get_company_metadata(symbol: str) -> dict:
+    """
+    Fetch company metadata with caching to minimize API calls.
+
+    This function is cached per session to conserve the 25-call daily limit.
+
+    Args:
+        symbol: Stock ticker symbol (e.g., 'AAPL', 'MSFT')
+
+    Returns:
+        Dictionary containing: Name, Symbol, Sector, Industry
+    """
+    client = AlphaVantageClient()
+    return client.fetch_company_metadata(symbol)

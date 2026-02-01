@@ -6,7 +6,7 @@ import pandas as pd
 import altair as alt
 import os
 
-from data_provider import AlphaVantageClient
+from data_provider import AlphaVantageClient, get_company_metadata
 from indicators import add_all_indicators, calculate_1m_return, calculate_3m_return
 from utils import format_currency, format_large_number, format_percent
 
@@ -44,6 +44,12 @@ if symbol:
     try:
         with st.spinner(f"Fetching data for {symbol}..."):
             df = fetch_and_process_data(symbol)
+            metadata = get_company_metadata(symbol)
+
+        # Company Identity Section
+        st.markdown(f"### {metadata['Name']} ({metadata['Symbol']})")
+        st.markdown(f"<p style='color: #888888; margin-top: -10px;'>{metadata['Sector']} | {metadata['Industry']}</p>", unsafe_allow_html=True)
+        st.markdown("---")
 
         latest = df.iloc[-1]
         prev = df.iloc[-2]
@@ -51,7 +57,6 @@ if symbol:
         price_change_pct = (price_change / prev["close"]) * 100
 
         # Current Price and Volume - Big Metrics
-        st.markdown("---")
         col1, col2, col3, col4 = st.columns(4)
 
         with col1:
