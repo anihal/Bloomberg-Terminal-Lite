@@ -162,6 +162,70 @@ def add_volume_indicators(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
+def calculate_1m_return(df: pd.DataFrame, date_col: str = "date") -> pd.DataFrame:
+    """
+    Calculate 1-month percentage return based on closing price.
+
+    Args:
+        df: DataFrame with 'close' column and a date column
+        date_col: Name of the date column (default: 'date')
+
+    Returns:
+        DataFrame with added column: return_1m (percentage return)
+    """
+    df = df.copy()
+
+    # Sort by date ascending to prevent look-ahead bias
+    if date_col in df.columns:
+        df = df.sort_values(by=date_col, ascending=True).reset_index(drop=True)
+
+    # 1 month ≈ 21 trading days
+    trading_days_1m = 21
+
+    if len(df) < trading_days_1m:
+        # Not enough data for 1-month return; fill with NaN
+        df["return_1m"] = pd.NA
+    else:
+        df["return_1m"] = (
+            (df["close"] - df["close"].shift(trading_days_1m))
+            / df["close"].shift(trading_days_1m)
+        ) * 100
+
+    return df
+
+
+def calculate_3m_return(df: pd.DataFrame, date_col: str = "date") -> pd.DataFrame:
+    """
+    Calculate 3-month percentage return based on closing price.
+
+    Args:
+        df: DataFrame with 'close' column and a date column
+        date_col: Name of the date column (default: 'date')
+
+    Returns:
+        DataFrame with added column: return_3m (percentage return)
+    """
+    df = df.copy()
+
+    # Sort by date ascending to prevent look-ahead bias
+    if date_col in df.columns:
+        df = df.sort_values(by=date_col, ascending=True).reset_index(drop=True)
+
+    # 3 months ≈ 63 trading days
+    trading_days_3m = 63
+
+    if len(df) < trading_days_3m:
+        # Not enough data for 3-month return; fill with NaN
+        df["return_3m"] = pd.NA
+    else:
+        df["return_3m"] = (
+            (df["close"] - df["close"].shift(trading_days_3m))
+            / df["close"].shift(trading_days_3m)
+        ) * 100
+
+    return df
+
+
 def add_all_indicators(df: pd.DataFrame) -> pd.DataFrame:
     """
     Add all technical indicators to the DataFrame.

@@ -3,10 +3,11 @@ Bloomberg Lite Terminal - Streamlit UI entry point.
 """
 import streamlit as st
 import pandas as pd
+import altair as alt
 import os
 
 from data_provider import AlphaVantageClient
-from indicators import add_all_indicators
+from indicators import add_all_indicators, calculate_1m_return, calculate_3m_return
 from utils import format_currency, format_large_number, format_percent
 
 # Check if API key is configured
@@ -34,6 +35,8 @@ def fetch_and_process_data(ticker: str) -> pd.DataFrame:
     client = AlphaVantageClient()
     df = client.get_stock_data(ticker)
     df = add_all_indicators(df)
+    df = calculate_1m_return(df)
+    df = calculate_3m_return(df)
     return df
 
 
@@ -49,7 +52,7 @@ if symbol:
 
         # Current Price and Volume - Big Metrics
         st.markdown("---")
-        col1, col2 = st.columns(2)
+        col1, col2, col3, col4 = st.columns(4)
 
         with col1:
             st.metric(
@@ -66,6 +69,24 @@ if symbol:
                 value=format_large_number(latest["volume"]),
                 delta=f"{format_percent(vol_change_pct)}"
             )
+
+        with col3:
+            return_1m = latest.get("return_1m", None)
+            if pd.notna(return_1m):
+                color = "green" if return_1m >= 0 else "red"
+                st.markdown(f"**1-Month Return**")
+                st.markdown(f"<h2 style='color: {color}; margin-top: -10px;'>{return_1m:+.2f}%</h2>", unsafe_allow_html=True)
+            else:
+                st.metric(label="1-Month Return", value="N/A")
+
+        with col4:
+            return_3m = latest.get("return_3m", None)
+            if pd.notna(return_3m):
+                color = "green" if return_3m >= 0 else "red"
+                st.markdown(f"**3-Month Return**")
+                st.markdown(f"<h2 style='color: {color}; margin-top: -10px;'>{return_3m:+.2f}%</h2>", unsafe_allow_html=True)
+            else:
+                st.metric(label="3-Month Return", value="N/A")
 
         st.markdown("---")
 
@@ -134,23 +155,129 @@ if symbol:
 
         st.markdown("---")
 
-        # Price Chart with Moving Averages
-        st.subheader("Price Chart")
-        chart_data = df[["close", "sma_20", "sma_50", "bb_upper", "bb_lower"]].tail(100)
-        chart_data.columns = ["Close", "SMA 20", "SMA 50", "BB Upper", "BB Lower"]
-        st.line_chart(chart_data)
+        # Price & Volume Chart (Bloomberg-style dark theme)
+        st.subheader("Price & Volume")
+        price_vol_data = df[["close", "volume"]].tail(100).copy().reset_index()
+
+        # Price chart - clean closing price line
+        price_chart = alt.Chart(price_vol_data).mark_line(
+            color="#FF6600",  # Bloomberg orange
+            strokeWidth=2
+        ).encode(
+            x=alt.X("date:T", axis=alt.Axis(format="%b %d", title=None, labels=False)),
+            y=alt.Y("close:Q", title="Price ($)", scale=alt.Scale(zero=False))
+        ).properties(
+            height=250
+        )
+
+        # Volume chart - bar chart below
+        volume_chart = alt.Chart(price_vol_data).mark_bar(
+            color="#FF6600",
+            opacity=0.7
+        ).encode(
+            x=alt.X("date:T", axis=alt.Axis(format="%b %d", title="Date")),
+            y=alt.Y("volume:Q", title="Volume")
+        ).properties(
+            height=100
+        )
+
+        # Stack price and volume charts vertically
+        combined_chart = alt.vconcat(
+            price_chart,
+            volume_chart,
+            spacing=0
+        ).configure(
+            background="#1a1a1a"
+        ).configure_axis(
+            labelColor="#cccccc",
+            titleColor="#cccccc",
+            gridColor="#333333",
+            domainColor="#555555",
+            tickColor="#555555"
+        ).configure_view(
+            strokeWidth=0
+        )
+
+        st.altair_chart(combined_chart, use_container_width=True)
 
         # RSI Chart
         st.subheader("RSI Chart")
-        rsi_chart = df[["rsi"]].tail(100)
-        rsi_chart.columns = ["RSI"]
-        st.line_chart(rsi_chart)
+        rsi_data = df[["rsi"]].tail(100).copy().reset_index()
+        rsi_data = rsi_data.dropna(subset=["rsi"])
+
+        rsi_line = alt.Chart(rsi_data).mark_line(color="#FF6600", strokeWidth=2).encode(
+            x=alt.X("date:T", axis=alt.Axis(format="%b %d", title="Date")),
+            y=alt.Y("rsi:Q", scale=alt.Scale(domain=[0, 100]), title="RSI")
+        )
+
+        overbought_line = alt.Chart(pd.DataFrame({"y": [70]})).mark_rule(
+            strokeDash=[5, 5], color="#888888"
+        ).encode(y="y:Q")
+
+        oversold_line = alt.Chart(pd.DataFrame({"y": [30]})).mark_rule(
+            strokeDash=[5, 5], color="#888888"
+        ).encode(y="y:Q")
+
+        rsi_chart = (rsi_line + overbought_line + oversold_line).properties(
+            height=250
+        ).configure(
+            background="#1a1a1a"
+        ).configure_axis(
+            labelColor="#cccccc",
+            titleColor="#cccccc",
+            gridColor="#333333",
+            domainColor="#555555",
+            tickColor="#555555",
+            labelFontSize=12,
+            titleFontSize=14
+        ).configure_view(
+            strokeWidth=0
+        )
+        st.altair_chart(rsi_chart, use_container_width=True)
 
         # MACD Chart
         st.subheader("MACD Chart")
-        macd_chart = df[["macd", "macd_signal"]].tail(100)
-        macd_chart.columns = ["MACD", "Signal"]
-        st.line_chart(macd_chart)
+        macd_data = df[["macd", "macd_signal"]].tail(100).copy().reset_index()
+        macd_data = macd_data.dropna(subset=["macd", "macd_signal"])
+
+        macd_melted = macd_data.melt(
+            id_vars=["date"],
+            value_vars=["macd", "macd_signal"],
+            var_name="Indicator",
+            value_name="Value"
+        )
+        macd_melted["Indicator"] = macd_melted["Indicator"].map({
+            "macd": "MACD",
+            "macd_signal": "Signal"
+        })
+
+        macd_chart = alt.Chart(macd_melted).mark_line().encode(
+            x=alt.X("date:T", axis=alt.Axis(format="%b %d", title="Date")),
+            y=alt.Y("Value:Q", title="MACD"),
+            color=alt.Color(
+                "Indicator:N",
+                scale=alt.Scale(domain=["MACD", "Signal"], range=["#FF6600", "#00BFFF"]),
+                legend=alt.Legend(title=None, orient="top", labelColor="#cccccc")
+            )
+        ).properties(
+            height=250
+        ).configure(
+            background="#1a1a1a"
+        ).configure_axis(
+            labelColor="#cccccc",
+            titleColor="#cccccc",
+            gridColor="#333333",
+            domainColor="#555555",
+            tickColor="#555555",
+            labelFontSize=12,
+            titleFontSize=14
+        ).configure_legend(
+            labelFontSize=12,
+            labelColor="#cccccc"
+        ).configure_view(
+            strokeWidth=0
+        )
+        st.altair_chart(macd_chart, use_container_width=True)
 
         st.markdown("---")
 
