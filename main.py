@@ -5,6 +5,7 @@ import streamlit as st
 import pandas as pd
 import altair as alt
 import os
+import time
 
 from data_provider import AlphaVantageClient, get_company_metadata
 from indicators import add_all_indicators, calculate_1m_return, calculate_3m_return
@@ -44,6 +45,7 @@ if symbol:
     try:
         with st.spinner(f"Fetching data for {symbol}..."):
             df = fetch_and_process_data(symbol)
+            time.sleep(1)  # Rate limit: 1 request per second for Alpha Vantage free tier
             metadata = get_company_metadata(symbol)
 
         # Company Identity Section
