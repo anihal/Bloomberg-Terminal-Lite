@@ -1,5 +1,5 @@
 """
-Bloomberg Lite Terminal - Streamlit UI entry point.
+Bloomberg Terminal Lite - Streamlit UI entry point.
 """
 import streamlit as st
 import pandas as pd
@@ -19,12 +19,12 @@ if not os.getenv("ALPHA_VANTAGE_KEY"):
 
 
 st.set_page_config(
-    page_title="Bloomberg Lite Terminal",
+    page_title="Bloomberg Terminal Lite",
     page_icon="📈",
     layout="wide"
 )
 
-st.title("Bloomberg Lite Terminal")
+st.title("Bloomberg Terminal Lite")
 
 symbol = st.text_input("Enter Stock Ticker", value="AAPL", placeholder="e.g., AAPL, MSFT, GOOGL")
 symbol = symbol.upper().strip()
@@ -107,6 +107,53 @@ if symbol:
 
         st.markdown("---")
 
+        # Price & Volume Chart (Bloomberg-style dark theme)
+        st.subheader("Price & Volume")
+        price_vol_data = df[["close", "volume"]].tail(100).copy().reset_index()
+
+        # Price chart - clean closing price line
+        price_chart = alt.Chart(price_vol_data).mark_line(
+            color="#FF6600",  # Bloomberg orange
+            strokeWidth=2
+        ).encode(
+            x=alt.X("date:T", axis=alt.Axis(format="%b %d", title=None, labels=False)),
+            y=alt.Y("close:Q", title="Price ($)", scale=alt.Scale(zero=False))
+        ).properties(
+            height=250
+        )
+
+        # Volume chart - bar chart below
+        volume_chart = alt.Chart(price_vol_data).mark_bar(
+            color="#FF6600",
+            opacity=0.7
+        ).encode(
+            x=alt.X("date:T", axis=alt.Axis(format="%b %d", title="Date")),
+            y=alt.Y("volume:Q", title="Volume")
+        ).properties(
+            height=100
+        )
+
+        # Stack price and volume charts vertically
+        combined_chart = alt.vconcat(
+            price_chart,
+            volume_chart,
+            spacing=0
+        ).configure(
+            background="#1a1a1a"
+        ).configure_axis(
+            labelColor="#cccccc",
+            titleColor="#cccccc",
+            gridColor="#333333",
+            domainColor="#555555",
+            tickColor="#555555"
+        ).configure_view(
+            strokeWidth=0
+        )
+
+        st.altair_chart(combined_chart, use_container_width=True)
+
+        st.markdown("---")
+
         # Technical Indicators Dashboard
         st.subheader("Technical Indicators")
 
@@ -159,53 +206,6 @@ if symbol:
         vol_col2.metric("Volume Ratio", f"{latest['volume_ratio']:.2f}x")
         vol_col3.metric("OBV", format_large_number(latest["obv"]))
         vol_col4.metric("VWAP", format_currency(latest["vwap"]))
-
-        st.markdown("---")
-
-        # Price & Volume Chart (Bloomberg-style dark theme)
-        st.subheader("Price & Volume")
-        price_vol_data = df[["close", "volume"]].tail(100).copy().reset_index()
-
-        # Price chart - clean closing price line
-        price_chart = alt.Chart(price_vol_data).mark_line(
-            color="#FF6600",  # Bloomberg orange
-            strokeWidth=2
-        ).encode(
-            x=alt.X("date:T", axis=alt.Axis(format="%b %d", title=None, labels=False)),
-            y=alt.Y("close:Q", title="Price ($)", scale=alt.Scale(zero=False))
-        ).properties(
-            height=250
-        )
-
-        # Volume chart - bar chart below
-        volume_chart = alt.Chart(price_vol_data).mark_bar(
-            color="#FF6600",
-            opacity=0.7
-        ).encode(
-            x=alt.X("date:T", axis=alt.Axis(format="%b %d", title="Date")),
-            y=alt.Y("volume:Q", title="Volume")
-        ).properties(
-            height=100
-        )
-
-        # Stack price and volume charts vertically
-        combined_chart = alt.vconcat(
-            price_chart,
-            volume_chart,
-            spacing=0
-        ).configure(
-            background="#1a1a1a"
-        ).configure_axis(
-            labelColor="#cccccc",
-            titleColor="#cccccc",
-            gridColor="#333333",
-            domainColor="#555555",
-            tickColor="#555555"
-        ).configure_view(
-            strokeWidth=0
-        )
-
-        st.altair_chart(combined_chart, use_container_width=True)
 
         # RSI Chart
         st.subheader("RSI Chart")
